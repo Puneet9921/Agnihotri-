@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agnihotri Aerospace - Tactical HUD</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.jsdelivr.net/npm/three@0.145.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.145.0/examples/js/loaders/GLTFLoader.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <link rel="stylesheet" href="style.css">
+    <style>
+        #mini-map { height: 200px; width: 100%; border: 1px solid #00d2ff; border-radius: 4px; z-index: 1; background: #1a1a1a; }
+        #mode-selector-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.95); z-index: 10001; display: flex; justify-content: center; align-items: center; font-family: 'Share Tech Mono', monospace; }
+        .mode-content { text-align: center; border: 2px solid #00f3ff; padding: 40px; background: rgba(0, 243, 255, 0.05); box-shadow: 0 0 20px #00f3ff44; }
+        .mode-btns button { background: transparent; border: 1px solid #00f3ff; color: #00f3ff; padding: 15px 30px; margin: 10px; cursor: pointer; font-size: 18px; transition: 0.3s; }
+        .mode-btns button:hover { background: #00f3ff; color: #000; box-shadow: 0 0 15px #00f3ff; }
+        
+        /* Fixed Chart Containers */
+        .chart-wrapper { position: relative; height: 110px; width: 100%; margin-top: 5px; }
+        .btn-back { width: 100%; margin-top: 10px; background: rgba(255, 50, 50, 0.1); border: 1px solid #ff3232; color: #ff3232; padding: 8px; cursor: pointer; font-family: 'Share Tech Mono'; transition: 0.3s; }
+        .btn-back:hover { background: #ff3232; color: #fff; }
+    </style>
+</head>
+<body>
+    
+
+<div id="mode-selector-overlay">
+    <div class="mode-content">
+        <h1 style="color:#00f3ff; letter-spacing: 5px;">AGNIHOTRI AEROSPACE</h1>
+        <p style="color:#fff;">SELECT MISSION PROFILE</p>
+        <div class="mode-btns">
+            <button onclick="launchApp('rocket')">ROCKET MISSION</button>
+            <button onclick="launchApp('drone')">DRONE SURVEILLANCE</button>
+        </div>
+    </div>
+</div>
+
+<div id="intro-overlay" style="display:none;">
+    <div class="intro-content">
+        <h2 class="loading-text">INITIALIZING SYSTEMS</h2>
+        <div class="loading-bar"><div class="loading-progress"></div></div>
+    </div>
+</div>
+
+<div class="hud-container">
+    <div class="col left-col">
+        <div class="box drone-panel">
+            <div class="rocket-graph-container">
+                <div class="graph-title">GYRO STABILITY</div>
+                
+                <div class="radar-compass">
+                    <div class="degree-mark d-0">0</div>
+                    <div class="degree-mark d-90">90</div>
+                    <div class="degree-mark d-180">180</div>
+                    <div class="degree-mark d-270">270</div>
+                    <div class="crosshair-v"></div>
+                    <div class="crosshair-h"></div>
+                    <div class="rocket-shape" id="rocket-icon"></div>
+                </div>
+                
+                
+                <div class="coordinates-display">
+                    <div><span class="c-label">+X:</span> <span id="gyro-x">0</span></div>
+                    <div><span class="c-label">-X:</span> <span id="gyro-x-neg">0</span></div>
+                    <div><span class="c-label">+Y:</span> <span id="gyro-y">0</span></div>
+                    <div><span class="c-label">-Y:</span> <span id="gyro-y-neg">0</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="box status-panel">
+            <div class="corner-br-title" style="text-align: center; color: #00f3ff;">GPS TELEMETRY</div>
+            <div class="stat-row"><span>LAT</span> <span id="gps-lat">00.0000</span></div>
+            <div class="stat-row"><span>LON</span> <span id="gps-long">00.0000</span></div>
+            <div class="stat-row"><span>ALT</span> <span id="gps-alt">0.0 m</span></div>
+            <div class="stat-row"><span>SPD</span> <span id="gps-speed">0.0 m/s</span></div>
+            <div class="stat-row"><span>FIX</span> <span id="gps-fix">NO FIX</span></div>
+            <div id="mini-map"></div>
+        </div>
+    </div>
+
+    <div class="col center-col">
+        <div class="center-header">
+            <div class="header-grid">
+                <div class="stat-cell">
+                    <span class="label-box">ON-TIME</span>
+                    <div class="timer" id="timer-countdown">0.0</div>
+                </div>
+                
+                <div class="stat-cell">
+                    <span class="label-box">PACKETS</span>
+                    <div class="packet-counters">
+                        <div class="p-sub">GPS: <span id="val-gps-count">0</span></div>
+                        <div class="p-sub">TX: <span id="val-tx-count">0</span></div>
+                    </div>
+                </div>
+                
+                <div class="stat-cell">
+                    <span class="label-box">CLOCK</span>
+                    <div class="timer" id="timer-realtime">00:00:00</div>
+                </div>
+            </div>
+            
+            <button onclick="resetMission()" class="btn-back">BACK TO MISSION SELECT</button>
+        </div>
+
+        <div class="surface-container" id="flight-deck">
+             <div id="three-canvas" style="width: 100%; height: 100%;"></div>
+        </div>
+
+        <div class="box gauge-row-panel">
+            <div class="gauge-container">
+                <span class="label-box">PRESSURE</span>
+                <svg viewBox="0 0 100 60" style="width:80px"> 
+                    <path d="M10 50 A 40 40 0 0 1 90 50" fill="none" stroke="#222" stroke-width="8"/>
+                    <path id="gauge-pres-fill" d="M10 50 A 40 40 0 0 1 90 50" fill="none" stroke="#00f3ff" stroke-width="8" stroke-dasharray="126" stroke-dashoffset="126"/>
+                </svg>
+                <div class="gauge-value-group"><span id="val-pres-gauge">0</span> <span class="unit-text"> hPa</span></div>
+            </div>
+            <div class="gauge-container">
+                <span class="label-box">ACCEL</span>
+                <svg viewBox="0 0 100 60" style="width:80px">
+                    <path d="M10 50 A 40 40 0 0 1 90 50" fill="none" stroke="#222" stroke-width="8"/>
+                    <path id="gauge-accel-fill" d="M10 50 A 40 40 0 0 1 90 50" fill="none" stroke="#ff3333" stroke-width="8" stroke-dasharray="126" stroke-dashoffset="126"/>
+                </svg>
+                <div class="gauge-value-group"><span id="val-accel-gauge">0.0</span> <span class="unit-text"> G</span></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col right-col">
+        <div class="box gauge-panel">
+            <div id="port-selector">
+                <select id="com-ports" style="width:100%; background:#000; color:#00f3ff;"><option>No Port Selected</option></select>
+                <button onclick="refreshPorts()" style="width:48%">Refresh</button>
+                <button onclick="connectSerial()" style="width:48%">Connect</button>
+            </div>
+            <button onclick="downloadData()" style="width:100%; margin-top:10px;">DOWNLOAD CSV</button><br><br>
+            
+        </div>
+        <div class="box status-panel">
+            <div class="stat-row"><span>ALT(KF)</span> <span id="sens-alt">0.0 m</span></div>
+            <div class="stat-row"><span>VEL</span> <span id="sens-vel">0 km/h</span></div>
+            <div class="stat-row"><span>TEMP</span> <span id="sens-temp">0 °C</span></div>
+        </div>
+        <div class="box charts-panel">
+            <span class="label-box">GPS ALTITUDE</span>
+            <div class="chart-wrapper"><canvas id="gpsAltChart"></canvas></div>
+            <span class="label-box" style="margin-top:10px;">FILTERED ALTITUDE</span>
+            <div class="chart-wrapper"><canvas id="txAltChart"></canvas></div>
+        </div>
+         <div class="box status-panel"><div class="commands-group">
+        <span class="label-box">MISSION STATUS</span>
+        <div class="checklist-grid">
+            <div id="check-init" class="status-box status-red">SYSTEM INIT</div>
+            <div id="check-launched" class="status-box status-red">LAUNCHED</div>
+            <div id="check-separate" class="status-box status-red">SEPARATED</div>
+        </div>
+    </div>
+    
+    
+        </div>
+    </div>
+</div>
+
+
+<script src="script.js"></script>
+</body>
+</html>

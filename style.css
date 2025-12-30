@@ -1,0 +1,520 @@
+/* ========================================= */
+/* 1. CORE CONFIGURATION & VARIABLES         */
+/* ========================================= */
+:root {
+    --cyan: #00f3ff;
+    --cyan-dim: rgba(0, 243, 255, 0.15);
+    --red: #ff2a2a;
+    --bg: #0b0f14;
+    --grid-line: rgba(0, 243, 255, 0.1);
+}
+
+* { box-sizing: border-box; }
+
+body, html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%; /* Fix to screen height on desktop */
+    background-color: var(--bg);
+    color: gold;
+    font-family: 'Share Tech Mono', monospace;
+    overflow: hidden; /* Prevent scrolling by default (Desktop HUD feel) */
+    
+    /* Global Grid Background (Kept only on Body) */
+    background-image: 
+        linear-gradient(var(--grid-line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: 40px 40px;
+}
+
+/* ========================================= */
+/* 2. MAIN LAYOUT (RESPONSIVE FLEXBOX)       */
+/* ========================================= */
+.hud-container {
+    display: flex;
+    flex-direction: row;
+    gap: 15px;
+    width: 100%;
+    height: 100%; /* Fill the viewport */
+    padding: 10px;
+}
+
+/* Columns */
+.col {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.left-col { flex: 1; min-width: 250px; }
+.right-col { flex: 1; min-width: 250px; }
+
+.center-col {
+    flex: 2; /* Center is wider */
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    min-width: 300px;
+}
+
+/* ========================================= */
+/* 3. RESPONSIVE BREAKPOINTS (MOBILE)        */
+/* ========================================= */
+@media screen and (max-width: 1024px) {
+    body, html {
+        overflow: auto; /* Enable scrolling on mobile */
+        height: auto;   /* Allow height to grow */
+    }
+
+    .hud-container {
+        flex-direction: column; /* Stack columns vertically */
+        height: auto;
+        padding-bottom: 50px;
+    }
+
+    .col {
+        width: 100%;
+        height: auto;
+    }
+
+    /* Move Camera/Center to Top on Mobile */
+    .center-col {
+        order: -1;
+    }
+
+    /* Adjust flight deck height for mobile */
+    #flight-deck {
+        height: 50vh; 
+        min-height: 300px;
+    }
+}
+
+/* ========================================= */
+/* 4. GENERAL UI BOXES & PANELS              */
+/* ========================================= */
+.box {
+    border: 2px solid rgba(52, 6, 216, 0.3);
+    position: relative;
+    /* Solid background to hide the body grid behind it */
+    background: #0b141e; 
+    padding: 10px;
+    animation: border-breathe 3s ease-in-out infinite;
+}
+
+/* Box Corners */
+.box::before, .box::after, .corner-br::before, .corner-br::after {
+    content: ''; position: absolute; width: 8px; height: 8px;
+    border-color: var(--cyan); border-style: solid; transition: all 0.3s;
+}
+.box::before { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
+.box::after { top: -1px; right: -1px; border-width: 2px 2px 0 0; }
+.corner-br { position: absolute; bottom: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+.corner-br::before { bottom: -1px; left: -1px; border-width: 0 0 2px 2px; }
+.corner-br::after { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
+
+.label { font-size: 12px; letter-spacing: 1px; color: var(--cyan); opacity: 0.8; margin-bottom: 5px; display: block; }
+
+/* Status Rows */
+.stat-row { display: flex; justify-content: space-between; font-size: 0.9rem; border-bottom: 1px solid var(--cyan-dim); padding: 5px 0;}
+
+/* White Label Box */
+.label-box {
+    background-color: #ffffff;
+    color: #000000;
+    padding: 2px 10px;
+    font-weight: bold;
+    font-size: 14px;
+    display: inline-block;
+    margin-bottom: 5px;
+    letter-spacing: 1px;
+}
+
+/* ========================================= */
+/* 5. CENTER PANEL SPECIFICS                 */
+/* ========================================= */
+.center-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    margin-bottom: 10px;
+    border-bottom: 1px solid rgba(0, 243, 255, 0.3);
+    padding-bottom: 10px;
+}
+
+/* --- NEW: Header Grid for Fixed Positions --- */
+.header-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr; /* Three equal columns */
+    width: 100%;
+    margin-bottom: 15px;
+    align-items: start;
+}
+
+.stat-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    width: 100%; 
+}
+
+/* Updated Timer Class for Stability */
+.timer {
+    font-size: 2rem;
+    color: var(--red);
+    text-shadow: 0 0 20px rgba(36, 236, 9, 0.6);
+    font-weight: bold;
+    text-align: center;
+    
+    /* Stability Fixes */
+    width: auto;
+    min-width: 100px;
+    font-variant-numeric: tabular-nums; /* Monospaced digits (1 is same width as 8) */
+    font-family: 'Share Tech Mono', monospace;
+    line-height: 1.2;
+}
+
+.status-text {
+    display: flex; gap: 10px; font-size: 1.2rem; margin-top: 10px; text-align: center;
+}
+.status-ready { color: var(--cyan); }
+
+/* 3D Viewport */
+.surface-container {
+    flex-grow: 1; 
+    position: relative;
+    border: 1px solid var(--cyan-dim);
+    /* Solid background */
+    background: #0b141e;
+    overflow: hidden;
+    min-height: 200px;
+}
+#flight-deck {
+    width: 100%;
+    height: 100%;
+    /* Sky Gradient */
+    background: linear-gradient(180deg, #3b5998 0%, #4c669f 30%, #89a9c9 100%);
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+}
+
+/* ========================================= */
+/* 6. CHARTS & GRAPHS (CLEAN BACKGROUND)     */
+/* ========================================= */
+.chart-container {
+    position: relative;
+    /* Solid background, NO GRID IMAGES */
+    background-color: #0b141e;
+    
+    border: 1px solid rgba(0, 243, 255, 0.3);
+    margin-bottom: 10px;
+    padding: 0;
+    width: 100%;
+}
+
+.chart-label {
+    position: absolute;
+    top: 5px; left: 5px;
+    font-size: 10px;
+    color: #00f3ff;
+    background: rgba(0,0,0,0.7);
+    padding: 2px 5px;
+    z-index: 10;
+    font-weight: bold;
+}
+
+canvas { display: block; width: 100%; height: 100%; }
+
+/* ========================================= */
+/* 7. GAUGES & METERS                        */
+/* ========================================= */
+.gauge-row-panel {
+    display: flex; justify-content: space-around; align-items: center;
+    padding: 1px 0; margin-top: 10px;
+    /* Solid background */
+    background: #0b141e;
+    height: 160px; 
+}
+.gauge-container { display: flex; flex-direction: column; align-items: center; width: 45%; }
+.gauge-circle { position: relative; width: 150px; height: 100px; margin: 10px 0; }
+.gauge-circle svg { width: 100%; height: 90%; overflow: visible; }
+.gauge-inner-text { 
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -20%); 
+    font-size: 2.5rem; font-weight: bold; color: white; text-shadow: 0 0 10px var(--cyan); 
+}
+.sub-label { font-size: 0.9rem; color: #888; letter-spacing: 2px; margin-top: -5px;}
+
+/* Right Panel Gauges */
+.gauge-panel { display: flex; align-items: center; justify-content: space-between; }
+.w-120 { width: 120px; }
+.txt-green { color: #0f0; }
+.circle-chart { width: 60px; height: 60px; border-radius: 50%; border: 4px solid #003333; border-top: 4px solid var(--cyan); display: flex; align-items: center; justify-content: center;}
+
+/* Code & Waveform */
+.code-panel { font-size: 11px; line-height: 1.4; color: rgba(255, 255, 255, 0.7); overflow: hidden; flex: 1; }
+.code-indent { padding-left: 10px; opacity: 0.6; }
+.code-red { color: var(--red); }
+.txt-red { color: var(--red); }
+.waveform-panel { height: 100px; display: flex; flex-direction: column; justify-content: flex-end;}
+.wave-svg { width: 100%; height: 60px; fill: var(--cyan); }
+.wave-labels { display: flex; justify-content: space-between; font-size: 9px; color: #555; margin-top: 5px; }
+
+/* Gyro Rocket Graph */
+.rocket-graph-container { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; }
+.graph-title { font-size: 14px; letter-spacing: 2px; color: var(--cyan); border-bottom: 1px solid var(--cyan-dim); margin-bottom: 10px; }
+.graph-grid { position: relative; width: 150px; height: 150px; border: 1px solid var(--cyan-dim); border-radius: 50%; background: radial-gradient(circle, transparent 20%, rgba(0, 243, 255, 0.1) 80%); margin: 10px 0; }
+.axis-x, .axis-y { position: absolute; background: var(--cyan-dim); }
+.axis-x { top: 50%; left: 0; width: 100%; height: 1px; }
+.axis-y { top: 0; left: 50%; height: 100%; width: 1px; }
+.rocket-shape { width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 25px solid var(--cyan); position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); filter: drop-shadow(0 0 5px var(--cyan)); }
+.gyro-header { margin: 5px 0; font-size: 14px; color: var(--cyan); font-weight: normal; }
+.coordinates-display { width: 100%; display: grid; grid-template-columns: 1fr 1fr; font-size: 12px; gap: 5px; border-top: 1px solid var(--cyan-dim); padding-top: 10px; }
+.c-label { color: var(--cyan); opacity: 0.7; }
+.graph-label { position: absolute; font-size: 9px; color: #aaa; }
+.lbl-y { top: 5px; left: 50%; transform: translateX(-50%); }
+.lbl-ny { bottom: 5px; left: 50%; transform: translateX(-50%); }
+.lbl-x { right: 5px; top: 50%; transform: translateY(-50%); }
+.lbl-nx { left: 5px; top: 50%; transform: translateY(-50%); }
+
+/* ========================================= */
+/* 8. HUD OVERLAY (Flight Deck UI)           */
+/* ========================================= */
+.hud-overlay {
+    font-family: 'Share Tech Mono', monospace;
+    color: #afffba; /* HUD Bright Green */
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+    pointer-events: none; /* Important: Lets clicks pass through to map/canvas */
+}
+
+/* Heading Tape */
+.hud-heading-container { position: absolute; top: 15px; left: 50%; transform: translateX(-50%); width: 300px; height: 40px; overflow: hidden; border-bottom: 2px solid #afffba; }
+.hud-heading-tape { position: absolute; bottom: 0; left: 50%; display: flex; align-items: flex-end; transition: transform 0.1s linear; }
+.tape-tick-box { width: 40px; height: 100%; position: relative; flex-shrink: 0; border-left: 1px solid #afffba; }
+.tape-tick-box.large { border-left: 2px solid #afffba; height: 100%; }
+.tape-tick-box span { position: absolute; top: 0; left: -10px; font-size: 14px; }
+.heading-indicator { position: absolute; top: 55px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 12px solid #afffba; }
+
+/* Pitch Ladder */
+.pitch-ladder-container { position: absolute; top: 50%; left: 50%; width: 0; height: 0; transform: translate(-50%, -50%) rotate(0deg); display: flex; justify-content: center; align-items: center; }
+.pitch-ladder-scroller { position: absolute; transform: translateY(0px); display: flex; flex-direction: column; align-items: center; }
+.pitch-line { position: absolute; width: 120px; height: 1px; background: #afffba; }
+.pitch-line::before, .pitch-line::after { content: ''; position: absolute; top:0; width: 1px; height: 10px; background: #afffba; }
+.pitch-line::before { left: 0; }
+.pitch-line::after { right: 0; }
+.boresight { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 20px; height: 20px; border: 2px solid #afffba; border-radius: 50%; z-index: 100; }
+.boresight::after { content: ''; position: absolute; top: 20%; left: 50%; width: 2px; height: 60%; background: #afffba; transform: translateX(-50%); }
+.boresight::before { content: ''; position: absolute; top: 50%; left: 20%; height: 2px; width: 60%; background: #afffba; transform: translateY(-50%); }
+
+/* ========================================= */
+/* 9. INTRO OVERLAY ANIMATIONS               */
+/* ========================================= */
+#intro-overlay {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background-color: #0b0f14; z-index: 9999;
+    display: flex; align-items: center; justify-content: center;
+    transition: opacity 1s ease-out, visibility 1s ease-out;
+}
+.intro-content { text-align: center; color: var(--cyan); }
+.rocket-wrapper { position: relative; display: inline-block; margin-bottom: 20px; animation: engine-rumble 0.1s infinite; perspective: 500px; }
+.intro-rocket { width: 120px; height: auto; filter: drop-shadow(0 0 15px var(--cyan)); transform-style: preserve-3d; animation: float-3d 3s ease-in-out infinite; }
+.rocket-exhaust { width: 10px; height: 20px; background: var(--cyan); margin: 0 auto; border-radius: 50%; box-shadow: 0 0 20px var(--cyan), 0 0 40px white; animation: flame-flicker 0.1s infinite alternate; opacity: 0; transition: opacity 0.5s; }
+.engines-on .rocket-exhaust { opacity: 1; height: 80px; }
+.rocket-launch { animation: fly-up 1.5s ease-in forwards !important; }
+.loading-text { letter-spacing: 4px; margin-bottom: 10px; text-shadow: 0 0 10px var(--cyan); }
+.loading-bar { width: 300px; height: 4px; background: rgba(0, 243, 255, 0.2); margin: 0 auto 10px auto; position: relative; overflow: hidden; }
+.loading-progress { width: 0%; height: 100%; background: var(--cyan); box-shadow: 0 0 10px var(--cyan); animation: load-progress 2.5s linear forwards; }
+.system-status { font-size: 12px; opacity: 0.7; animation: blink 0.5s infinite alternate; }
+.overlay-hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+
+/* ========================================= */
+/* 10. KEYFRAME ANIMATIONS                   */
+/* ========================================= */
+@keyframes border-breathe {
+    0% { box-shadow: 0 0 15px var(--cyan-dim), inset 0 0 10px var(--cyan-dim); border-color: rgba(0, 243, 255, 0.6); }
+    50% { box-shadow: 0 0 2px rgba(0, 243, 255, 0.05), inset 0 0 1px rgba(0, 243, 255, 0.05); border-color: rgba(0, 243, 255, 0.2); }
+    100% { box-shadow: 0 0 15px var(--cyan-dim), inset 0 0 10px var(--cyan-dim); border-color: rgba(0, 243, 255, 0.6); }
+}
+@keyframes blinker { 50% { opacity: 0; } }
+.blink { animation: blinker 1s linear infinite; }
+@keyframes load-progress { 0% { width: 0%; } 100% { width: 100%; } }
+@keyframes fly-up { 0% { transform: translateY(0); } 100% { transform: translateY(-100vh) scale(0.5); opacity: 0; } }
+@keyframes flame-flicker { from { transform: scale(1); opacity: 0.8; } to { transform: scale(1.2); opacity: 1; } }
+@keyframes float-3d { 0%, 100% { transform: translateY(0) rotateX(0); } 50% { transform: translateY(-10px) rotateX(10deg); } }
+#three-canvas {
+    width: 100%;
+    height: 100%;
+    min-height: 400px; /* Force visibility */
+    display: block;
+    position: relative;
+}
+#three-canvas, #mini-map {
+    height: 350px !important; 
+    width: 100%;
+    display: block;
+}
+/* Add this to your CSS file */
+#arrow-x-icon, #arrow-y-icon {
+    transition: transform 0.2s cubic-bezier(0.17, 0.67, 0.83, 0.67);
+    color: #00f3ff;
+    font-weight: bold;
+}
+#mode-selector-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.95);
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: 'Share Tech Mono', monospace;
+}
+
+.mode-content {
+    text-align: center;
+    border: 2px solid #00f3ff;
+    padding: 50px;
+    background: rgba(0, 243, 255, 0.05);
+    box-shadow: 0 0 20px #00f3ff44;
+}
+
+.mode-content h2 { color: #00f3ff; margin-bottom: 30px; letter-spacing: 5px; }
+
+.mode-btns button {
+    background: transparent;
+    border: 1px solid #00f3ff;
+    color: #00f3ff;
+    padding: 15px 30px;
+    margin: 10px;
+    cursor: pointer;
+    font-size: 18px;
+    transition: 0.3s;
+}
+
+.mode-btns button:hover {
+    background: #00f3ff;
+    color: #000;
+    box-shadow: 0 0 15px #00f3ff;
+}
+#three-canvas {
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle, #001a1a 0%, #000000 100%); /* Depth effect */
+    cursor: crosshair;
+}
+.radar-compass {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    border: 2px solid #00f3ff;
+    border-radius: 50%;
+    margin: 10px auto;
+    background: rgba(0, 243, 255, 0.05);
+    box-shadow: inset 0 0 15px rgba(0, 243, 255, 0.2);
+}
+
+.degree-mark {
+    position: absolute;
+    font-size: 10px;
+    color: #00f3ff;
+    font-family: 'Share Tech Mono';
+}
+
+.d-0   { top: 2px; left: 50%; transform: translateX(-50%); }
+.d-90  { right: 5px; top: 50%; transform: translateY(-50%); }
+.d-180 { bottom: 2px; left: 50%; transform: translateX(-50%); }
+.d-270 { left: 5px; top: 50%; transform: translateY(-50%); }
+
+.crosshair-v { position: absolute; left: 50%; top: 10%; bottom: 10%; width: 1px; background: rgba(0, 243, 255, 0.3); }
+.crosshair-h { position: absolute; top: 50%; left: 10%; right: 10%; height: 1px; background: rgba(0, 243, 255, 0.3); }
+
+#rocket-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0; 
+    height: 0; 
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-bottom: 20px solid #00f3ff; /* Arrow Shape */
+    margin-left: -8px;
+    margin-top: -10px;
+    transition: transform 0.1s ease-out;
+    filter: drop-shadow(0 0 5px #00f3ff);
+}
+/* Checklist Grid */
+.checklist-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 10px 0;
+}
+
+.status-box {
+    padding: 10px;
+    font-size: 11px;
+    font-family: 'Share Tech Mono', monospace;
+    text-align: center;
+    border-left: 4px solid transparent;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.5s ease;
+}
+
+/* Red Shaded (Pending/Inactive) */
+.status-red {
+    background: rgba(255, 51, 51, 0.1);
+    border-color: #ff3333;
+    color: #ff7777;
+    box-shadow: inset 0 0 10px rgba(255, 51, 51, 0.05);
+}
+
+/* Green Shaded (Complete/Active) */
+.status-green {
+    background: rgba(0, 243, 255, 0.2);
+    border-color: #00f3ff;
+    color: #00f3ff;
+    box-shadow: 0 0 15px rgba(0, 243, 255, 0.2), inset 0 0 10px rgba(0, 243, 255, 0.1);
+    font-weight: bold;
+}
+
+/* Command Button Grid Alignment */
+.command-actions-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px;
+    margin-top: 10px;
+}
+
+.btn-warn {
+    grid-column: span 2;
+    border-color: #ff9d00 !important;
+    color: #ff9d00 !important;
+}
+/* Update your existing style for the overlay */
+#mode-selector-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7); /* Reduced opacity to see 3D bg */
+    z-index: 10001;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: 'Share Tech Mono', monospace;
+    backdrop-filter: blur(4px); /* Adds a professional frosted effect */
+}
+
+/* Add this to create a container for the selection background */
+#selection-bg-canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10000; /* Behind the overlay, in front of the main UI */
+    background: #000;
+}
