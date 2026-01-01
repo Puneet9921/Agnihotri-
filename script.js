@@ -13,60 +13,7 @@ let uiXP=0, uiXN=0, uiYP=0, uiYN=0, uiZ=0;
 let targetRotX=0, targetRotY=0, targetRotZ=0;
 let currentRotX=0, currentRotY=0, currentRotZ=0;
 const LERP_SPEED = 0.08;
-let selectionScene, selectionCamera, selectionRenderer, selectionRocket;
 
-// Initialize the background immediately
-initSelectionEnvironment();
-
-function initSelectionEnvironment() {
-    const container = document.getElementById('selection-bg-canvas');
-    selectionScene = new THREE.Scene();
-    selectionCamera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-    selectionRenderer = new THREE.WebGLRenderer({ antialias: true });
-    selectionRenderer.setSize(window.innerWidth, window.innerHeight);
-    container.appendChild(selectionRenderer.domElement);
-
-    // Add cinematic lighting
-    selectionScene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1.5));
-    const spot = new THREE.SpotLight(0x00f3ff, 2);
-    spot.position.set(10, 20, 10);
-    selectionScene.add(spot);
-
-    // Add a Grid Floor for a "hangar" look
-    const grid = new THREE.GridHelper(200, 40, 0x00f3ff, 0x111111);
-    grid.position.y = -5;
-    selectionScene.add(grid);
-
-    // Move camera for a cinematic angle
-    selectionCamera.position.set(15, 10, 30);
-    selectionCamera.lookAt(0, 5, 0);
-
-    function animateSelection() {
-        if (!selectionRenderer) return; 
-        requestAnimationFrame(animateSelection);
-        selectionScene.rotation.y += 0.002; // Slow cinematic rotation
-        selectionRenderer.render(selectionScene, selectionCamera);
-    }
-    animateSelection();
-}
-
-// Function to handle the transition from Menu to HUD
-function startMission(mode) {
-    selectedMode = mode;
-    
-    // 1. Dispose of selection background to free up GPU memory
-    if (selectionRenderer) {
-        selectionRenderer.dispose();
-        selectionRenderer = null;
-        document.getElementById('selection-bg-canvas').remove();
-    }
-
-    // 2. Hide the selection menu
-    document.getElementById('mode-selector-overlay').style.display = 'none';
-    
-    // 3. Initialize your main Tactical HUD and 3D Model
-    initApp(); 
-}
 
 function launchApp(mode) {
     selectedMode = mode;
@@ -161,8 +108,9 @@ function init3D() {
 function processData(line) {
     flightData.push(line);
     const mTime = startTime ? ((Date.now() - startTime) / 1000).toFixed(1) : "0";
-    const txMatch = line.match(/<TX:([^>]+)>/);
 
+    // --- 1. HANDLE TX PACKETS (Gyro/Attitude) ---
+    const txMatch = line.match(/<TX:([^>]+)>/);
     if (txMatch) {
         txPacketCount++;
         document.getElementById('val-tx-count').innerText = txPacketCount;
@@ -174,13 +122,11 @@ function processData(line) {
         uiYP = parseFloat(findVal(d, 'Y\\+')) || 0;
         uiYN = parseFloat(findVal(d, 'Y\\-')) || 0;
 
-        // --- UPDATED MAPPING FOR VERTICAL ROCKET ---
         if (selectedMode === 'rocket') {
-            targetRotX = (uiYP - uiYN) * (Math.PI / 180);  // Tilts forward/back
-            targetRotY = uiZ * (Math.PI / 180);            // Spins around vertical spine
-            targetRotZ = -(uiXP - uiXN) * (Math.PI / 180); // Tilts side-to-side
+            targetRotX = (uiYP - uiYN) * (Math.PI / 180);
+            targetRotY = uiZ * (Math.PI / 180);
+            targetRotZ = -(uiXP - uiXN) * (Math.PI / 180);
         } else {
-            // Standard Drone Mapping
             targetRotX = (uiXP - uiXN) * (Math.PI / 180);
             targetRotY = uiZ * (Math.PI / 180);
             targetRotZ = -(uiYP - uiYN) * (Math.PI / 180);
@@ -191,13 +137,44 @@ function processData(line) {
         updateHUD('gyro-x-neg', uiXN, "", 0);
         updateHUD('gyro-y', uiYP, "", 0);
         updateHUD('gyro-y-neg', uiYN, "", 0);
-        
         updateHUD('sens-temp', findVal(d, 'Temp') || findVal(d, 'T'), " °C", 1);
         updateHUD('val-pres-gauge', findVal(d, 'Press') || findVal(d, 'P'), "", 1);
         
         const altKF = parseFloat(findVal(d, 'AltKF'));
         updateHUD('sens-alt', altKF, " m", 1);
         if (!isNaN(altKF)) updateChart(txChart, mTime, altKF);
+    }
+
+    // --- 2. HANDLE GPS PACKETS (Position/Fix) ---
+    const gpsMatch = line.match(/<GPS:([^>]+)>/);
+    if (gpsMatch) {
+        gpsPacketCount++;
+        document.getElementById('val-gps-count').innerText = gpsPacketCount;
+        const d = gpsMatch[1];
+        
+
+        const lat = parseFloat(findVal(d, 'Lat'));
+        const lon = parseFloat(findVal(d, 'Lon'));
+        const alt = parseFloat(findVal(d, 'Alt'));
+        const spd = parseFloat(findVal(d, 'Spd'));
+        const fix = findVal(d, 'Fix');
+
+        // Update Text UI
+        updateHUD('gps-lat', lat, "", 4);
+        updateHUD('gps-long', lon, "", 4);
+        updateHUD('gps-alt', alt, " m", 1);
+        updateHUD('gps-speed', spd, " m/s", 1);
+        updateHUD('gps-fix', (fix == "1" || fix == "3") ? "LOCKED" : "NO FIX");
+
+        // Update Map Marker & View
+        if (!isNaN(lat) && !isNaN(lon) && lat !== 0) {
+            const newPos = [lat, lon];
+            marker.setLatLng(newPos);
+            map.panTo(newPos); // Smoothly follows the craft
+        }
+
+        // Update GPS Altitude Chart
+        if (!isNaN(alt)) updateChart(gpsChart, mTime, alt);
     }
 }
 // ... helper functions (findVal, updateHUD, initCharts, etc.) remain the same ...
